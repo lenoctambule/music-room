@@ -83,12 +83,15 @@ export default function PlaylistScreen({ route, navigation }: Props) {
     socket.emit('joinPlaylist', playlistId);
 
     socket.on('playlistTrackAdded', (data) => {
+      console.log('[Playlist] trackAdded received:', data.playlistId);
       if (data.playlistId === playlistId) setTracks(data.tracks as PlaylistTrack[]);
     });
     socket.on('playlistTrackRemoved', (data) => {
+      console.log('[Playlist] trackRemoved received:', data.playlistId);
       if (data.playlistId === playlistId) setTracks(data.tracks as PlaylistTrack[]);
     });
     socket.on('playlistTrackReordered', (data) => {
+      console.log('[Playlist] trackReordered received:', data.playlistId);
       if (data.playlistId === playlistId) setTracks(data.tracks as PlaylistTrack[]);
     });
   };

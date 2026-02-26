@@ -76,12 +76,14 @@ export default function EventScreen({ route }: Props) {
     socket.emit('joinEvent', eventId);
 
     socket.on('trackAdded', (data) => {
+      console.log('[Event] trackAdded received:', data.eventId);
       if (data.eventId === eventId) {
         setTracks(data.tracks as Track[]);
       }
     });
 
     socket.on('trackVoted', (data) => {
+      console.log('[Event] trackVoted received:', data.eventId);
       if (data.eventId === eventId) {
         setTracks(data.tracks as Track[]);
       }

@@ -10,6 +10,18 @@ export function getSocket(): Socket {
       transports: ['websocket'],
       autoConnect: false,
     });
+
+    socket.on('connect', () => {
+      console.log('[Socket.io] Connected:', socket?.id);
+    });
+
+    socket.on('connect_error', (err) => {
+      console.log('[Socket.io] Connection error:', err.message);
+    });
+
+    socket.on('disconnect', (reason) => {
+      console.log('[Socket.io] Disconnected:', reason);
+    });
   }
   return socket;
 }

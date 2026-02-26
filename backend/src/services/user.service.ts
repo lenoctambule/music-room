@@ -133,6 +133,31 @@ export async function acceptFriendRequest(userId: string, friendId: string) {
   return updated;
 }
 
+export async function searchUsers(email: string, requestingUserId: string) {
+  const users = await prisma.user.findMany({
+    where: {
+      email: { contains: email, mode: 'insensitive' },
+      id: { not: requestingUserId },
+    },
+    select: { id: true, name: true, email: true },
+    take: 20,
+  });
+  return users;
+}
+
+export async function getPendingRequests(userId: string) {
+  const requests = await prisma.friendship.findMany({
+    where: {
+      friendId: userId,
+      status: 'PENDING',
+    },
+    include: {
+      user: { select: { id: true, name: true, email: true } },
+    },
+  });
+  return requests.map(r => ({ ...r.user, requestId: r.id }));
+}
+
 export async function getFriends(userId: string) {
   const friendships = await prisma.friendship.findMany({
     where: {

@@ -1,7 +1,9 @@
 import { useEffect } from 'react';
-import { ActivityIndicator, View, TouchableOpacity, Text } from 'react-native';
+import { ActivityIndicator, View } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useAuthStore } from '../store/authStore';
 import LoginScreen from '../screens/LoginScreen';
 import RegisterScreen from '../screens/RegisterScreen';
@@ -9,17 +11,73 @@ import HomeScreen from '../screens/HomeScreen';
 import EventScreen from '../screens/EventScreen';
 import PlaylistScreen from '../screens/PlaylistScreen';
 import ProfileScreen from '../screens/ProfileScreen';
+import FriendsScreen from '../screens/FriendsScreen';
+import UserProfileScreen from '../screens/UserProfileScreen';
 
 export type RootStackParamList = {
   Login: undefined;
   Register: undefined;
-  Home: undefined;
+  MainTabs: undefined;
   Event: { eventId: string };
   Playlist: { playlistId: string };
+  UserProfile: { userId: string };
+};
+
+export type TabParamList = {
+  Home: undefined;
+  Friends: undefined;
   Profile: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
+const Tab = createBottomTabNavigator<TabParamList>();
+
+function MainTabs() {
+  return (
+    <Tab.Navigator
+      screenOptions={{
+        tabBarActiveTintColor: '#4f46e5',
+        tabBarInactiveTintColor: '#999',
+        tabBarLabelStyle: { fontSize: 12, fontWeight: '500' },
+        headerShown: true,
+      }}
+    >
+      <Tab.Screen
+        name="Home"
+        component={HomeScreen}
+        options={{
+          title: 'Music Room',
+          tabBarLabel: 'Accueil',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="home-outline" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Friends"
+        component={FriendsScreen}
+        options={{
+          title: 'Amis',
+          tabBarLabel: 'Amis',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="people-outline" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Profile"
+        component={ProfileScreen}
+        options={{
+          title: 'Mon profil',
+          tabBarLabel: 'Profil',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="person-outline" size={size} color={color} />
+          ),
+        }}
+      />
+    </Tab.Navigator>
+  );
+}
 
 export default function AppNavigator() {
   const { accessToken, isLoading, loadTokens } = useAuthStore();
@@ -42,20 +100,13 @@ export default function AppNavigator() {
         {accessToken ? (
           <>
             <Stack.Screen
-              name="Home"
-              component={HomeScreen}
-              options={({ navigation }) => ({
-                title: 'Music Room',
-                headerRight: () => (
-                  <TouchableOpacity onPress={() => navigation.navigate('Profile')}>
-                    <Text style={{ color: '#4f46e5', fontSize: 15, fontWeight: '500' }}>Profil</Text>
-                  </TouchableOpacity>
-                ),
-              })}
+              name="MainTabs"
+              component={MainTabs}
+              options={{ headerShown: false }}
             />
             <Stack.Screen name="Event" component={EventScreen} options={{ title: 'Evenement' }} />
             <Stack.Screen name="Playlist" component={PlaylistScreen} />
-            <Stack.Screen name="Profile" component={ProfileScreen} options={{ title: 'Mon profil' }} />
+            <Stack.Screen name="UserProfile" component={UserProfileScreen} options={{ title: 'Profil' }} />
           </>
         ) : (
           <>

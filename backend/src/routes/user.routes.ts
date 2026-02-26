@@ -80,6 +80,42 @@ router.get('/me/friends', userController.getFriends);
 
 /**
  * @swagger
+ * /users/search:
+ *   get:
+ *     summary: Rechercher des utilisateurs par email
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: email
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Liste des utilisateurs correspondants
+ *       400:
+ *         description: Requête invalide
+ */
+router.get('/search', userController.searchUsers);
+
+/**
+ * @swagger
+ * /users/friend-requests/pending:
+ *   get:
+ *     summary: Demandes d'ami en attente
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Liste des demandes en attente
+ */
+router.get('/friend-requests/pending', userController.getPendingRequests);
+
+/**
+ * @swagger
  * /users/friend-requests/{friendId}:
  *   post:
  *     summary: Envoyer une demande d'ami
