@@ -1,0 +1,51 @@
+config:
+  target: "http://localhost:3001"
+  phases:
+    - duration: 10
+      arrivalRate: 2
+      name: "Warm-up"
+    - duration: 30
+      arrivalRate: 2
+      rampTo: 20
+      name: "Ramp-up"
+    - duration: 20
+      arrivalRate: 20
+      name: "Sustained load"
+  variables:
+    token: "{{ $processEnvironment.AUTH_TOKEN }}"
+
+scenarios:
+  # Scenario 1 : Health check (baseline sans auth)
+  - name: "Health check"
+    weight: 4
+    flow:
+      - get:
+          url: "/health"
+
+  # Scenario 2 : Parcourir les evenements (auth + lecture)
+  - name: "Browse events"
+    weight: 3
+    flow:
+      - get:
+          url: "/api/events"
+          headers:
+            Authorization: "Bearer {{ token }}"
+      - think: 1
+      - get:
+          url: "/api/events"
+          headers:
+            Authorization: "Bearer {{ token }}"
+
+  # Scenario 3 : Parcourir les playlists (auth + lecture)
+  - name: "Browse playlists"
+    weight: 3
+    flow:
+      - get:
+          url: "/api/playlists"
+          headers:
+            Authorization: "Bearer {{ token }}"
+      - think: 1
+      - get:
+          url: "/api/playlists"
+          headers:
+            Authorization: "Bearer {{ token }}"
