@@ -16,6 +16,8 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import api from '../services/api';
 import { crossAlert } from '../utils/alert';
+import { useTheme } from '../theme/theme-context';
+import { useResponsive } from '../hooks/use-responsive';
 
 interface UserResult {
   id: string;
@@ -25,6 +27,8 @@ interface UserResult {
 
 export default function FriendsScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const { colors } = useTheme();
+  const { contentMaxWidth } = useResponsive();
   const [query, setQuery] = useState('');
   const [searchResults, setSearchResults] = useState<UserResult[]>([]);
   const [searching, setSearching] = useState(false);
@@ -126,7 +130,7 @@ export default function FriendsScreen() {
   if (loading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#4f46e5" />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -136,7 +140,7 @@ export default function FriendsScreen() {
       <ScrollView
         keyboardShouldPersistTaps="handled"
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, contentMaxWidth ? { maxWidth: contentMaxWidth, width: '100%', alignSelf: 'center' as const } : undefined]}
       >
         {/* Search section */}
         <View style={styles.section}>
@@ -152,7 +156,7 @@ export default function FriendsScreen() {
           />
 
           {searching && (
-            <ActivityIndicator size="small" color="#4f46e5" style={{ marginVertical: 8 }} />
+            <ActivityIndicator size="small" color={colors.primary} style={{ marginVertical: 8 }} />
           )}
 
           {searchResults.map(user => (
@@ -166,7 +170,7 @@ export default function FriendsScreen() {
                 <Text style={styles.userEmail}>{user.email}</Text>
               </View>
               <TouchableOpacity
-                style={[styles.actionBtn, sendingTo === user.id && styles.buttonDisabled]}
+                style={[styles.actionBtn, { backgroundColor: colors.primary }, sendingTo === user.id && styles.buttonDisabled]}
                 onPress={() => handleSendRequest(user.id)}
                 disabled={sendingTo === user.id}
               >
@@ -279,7 +283,6 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   actionBtn: {
-    backgroundColor: '#4f46e5',
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 8,

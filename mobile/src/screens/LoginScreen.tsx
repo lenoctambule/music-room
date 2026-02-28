@@ -14,6 +14,8 @@ import * as Google from 'expo-auth-session/providers/google';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { useAuthStore } from '../store/authStore';
+import { useTheme } from '../theme/theme-context';
+import { useResponsive } from '../hooks/use-responsive';
 import api from '../services/api';
 import { crossAlert } from '../utils/alert';
 
@@ -26,6 +28,8 @@ export default function LoginScreen({ navigation }: Props) {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const setTokens = useAuthStore((s) => s.setTokens);
+  const { colors } = useTheme();
+  const { formMaxWidth } = useResponsive();
 
   const handleLogin = async () => {
     if (!email.trim() || !password) {
@@ -87,7 +91,7 @@ export default function LoginScreen({ navigation }: Props) {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <View style={styles.inner}>
+      <View style={[styles.inner, formMaxWidth ? { maxWidth: formMaxWidth, width: '100%', alignSelf: 'center' as const } : undefined]}>
         <Text style={styles.title}>Music Room</Text>
         <Text style={styles.subtitle}>Sign in</Text>
 
@@ -111,7 +115,7 @@ export default function LoginScreen({ navigation }: Props) {
         />
 
         <TouchableOpacity
-          style={[styles.button, loading && styles.buttonDisabled]}
+          style={[styles.button, { backgroundColor: colors.primary }, loading && styles.buttonDisabled]}
           onPress={handleLogin}
           disabled={loading}
         >
@@ -123,7 +127,7 @@ export default function LoginScreen({ navigation }: Props) {
         </TouchableOpacity>
 
         <TouchableOpacity onPress={() => navigation.navigate('ForgotPassword')}>
-          <Text style={styles.forgotText}>Forgot password?</Text>
+          <Text style={[styles.forgotText, { color: colors.primary }]}>Forgot password?</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -136,7 +140,7 @@ export default function LoginScreen({ navigation }: Props) {
 
         <TouchableOpacity onPress={() => navigation.navigate('Register')}>
           <Text style={styles.linkText}>
-            Don't have an account? <Text style={styles.linkBold}>Sign up</Text>
+            Don't have an account? <Text style={[styles.linkBold, { color: colors.primary }]}>Sign up</Text>
           </Text>
         </TouchableOpacity>
       </View>

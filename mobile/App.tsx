@@ -4,9 +4,9 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import AppNavigator from './src/navigation/AppNavigator';
 import { useAuthStore } from './src/store/authStore';
+import { ThemeProvider } from './src/theme/theme-context';
 
 export default function App() {
-  // On web, catch OAuth tokens from URL query params after Google redirect
   useEffect(() => {
     if (Platform.OS === 'web') {
       const params = new URLSearchParams(window.location.search);
@@ -21,23 +21,25 @@ export default function App() {
 
   if (Platform.OS === 'web') {
     return (
-      <SafeAreaProvider>
-        <View style={styles.webRoot}>
-          <View style={styles.webContainer}>
+      <ThemeProvider>
+        <SafeAreaProvider>
+          <View style={styles.webRoot}>
             <AppNavigator />
           </View>
-        </View>
-      </SafeAreaProvider>
+        </SafeAreaProvider>
+      </ThemeProvider>
     );
   }
 
   return (
-    <SafeAreaProvider>
-      <View style={styles.native}>
-        <AppNavigator />
-        <StatusBar style="auto" />
-      </View>
-    </SafeAreaProvider>
+    <ThemeProvider>
+      <SafeAreaProvider>
+        <View style={styles.native}>
+          <AppNavigator />
+          <StatusBar style="auto" />
+        </View>
+      </SafeAreaProvider>
+    </ThemeProvider>
   );
 }
 
@@ -48,19 +50,7 @@ const styles = StyleSheet.create({
   webRoot: {
     // @ts-ignore — '100vh' is valid CSS on web via react-native-web
     height: '100vh',
-    backgroundColor: '#f0f0f0',
-    flexDirection: 'row',
-    justifyContent: 'center',
-  },
-  webContainer: {
     flex: 1,
-    maxWidth: 480,
-    width: '100%',
-    backgroundColor: '#fff',
-    borderLeftWidth: 1,
-    borderRightWidth: 1,
-    borderColor: '#e5e5e5',
-    // @ts-ignore
-    overflow: 'hidden',
+    backgroundColor: '#f0f0f0',
   },
 });

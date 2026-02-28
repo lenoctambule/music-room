@@ -18,6 +18,8 @@ import { RootStackParamList } from '../navigation/AppNavigator';
 import { useAuthStore } from '../store/authStore';
 import api from '../services/api';
 import { crossAlert } from '../utils/alert';
+import { useTheme, THEME_OPTIONS } from '../theme/theme-context';
+import { useResponsive } from '../hooks/use-responsive';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -44,6 +46,8 @@ function getInitials(name: string): string {
 
 export default function ProfileScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const { colors, themeName, setTheme } = useTheme();
+  const { contentMaxWidth } = useResponsive();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -162,21 +166,25 @@ export default function ProfileScreen() {
   if (loading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#4f46e5" />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
 
   if (!profile) return null;
 
+  const responsiveScroll = contentMaxWidth
+    ? { maxWidth: contentMaxWidth, width: '100%' as const, alignSelf: 'center' as const }
+    : undefined;
+
   // View mode
   if (!isEditing) {
     return (
       <SafeAreaView style={styles.container} edges={['bottom']}>
-        <ScrollView contentContainerStyle={styles.scroll}>
+        <ScrollView contentContainerStyle={[styles.scroll, responsiveScroll]}>
           {/* Avatar */}
           <View style={styles.avatarContainer}>
-            <View style={styles.avatar}>
+            <View style={[styles.avatar, { backgroundColor: colors.primary }]}>
               <Text style={styles.avatarText}>{getInitials(profile.name)}</Text>
             </View>
             <Text style={styles.profileName}>{profile.name}</Text>
@@ -222,15 +230,35 @@ export default function ProfileScreen() {
               <Text style={styles.cardLabel}>Music preferences</Text>
               <View style={styles.tagsRow}>
                 {profile.musicPreferences.map((pref, i) => (
-                  <View key={i} style={styles.tag}>
-                    <Text style={styles.tagText}>{pref}</Text>
+                  <View key={i} style={[styles.tag, { backgroundColor: colors.primaryLight }]}>
+                    <Text style={[styles.tagText, { color: colors.primary }]}>{pref}</Text>
                   </View>
                 ))}
               </View>
             </View>
           ) : null}
 
-          <TouchableOpacity style={styles.editButton} onPress={handleEdit}>
+          <View style={styles.card}>
+            <Text style={styles.cardLabel}>Theme</Text>
+            <View style={styles.tagsRow}>
+              {THEME_OPTIONS.map(opt => (
+                <TouchableOpacity
+                  key={opt.name}
+                  onPress={() => setTheme(opt.name)}
+                  style={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: 18,
+                    backgroundColor: opt.color,
+                    borderWidth: themeName === opt.name ? 3 : 0,
+                    borderColor: '#1a1a1a',
+                  }}
+                />
+              ))}
+            </View>
+          </View>
+
+          <TouchableOpacity style={[styles.editButton, { backgroundColor: colors.primary }]} onPress={handleEdit}>
             <Text style={styles.editButtonText}>Edit profile</Text>
           </TouchableOpacity>
 
@@ -261,7 +289,7 @@ export default function ProfileScreen() {
   // Edit mode
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
-      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+      <ScrollView contentContainerStyle={[styles.scroll, responsiveScroll]} keyboardShouldPersistTaps="handled">
         <Text style={styles.email}>{profile.email}</Text>
 
         <Text style={styles.label}>Name</Text>
@@ -315,7 +343,7 @@ export default function ProfileScreen() {
             <Text style={styles.cancelBtnText}>Cancel</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.saveButton, saving && styles.buttonDisabled]}
+            style={[styles.saveButton, { backgroundColor: colors.primary }, saving && styles.buttonDisabled]}
             onPress={handleSave}
             disabled={saving}
           >
@@ -354,7 +382,6 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#4f46e5',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 12,
@@ -408,18 +435,15 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   tag: {
-    backgroundColor: '#eef2ff',
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 14,
   },
   tagText: {
     fontSize: 13,
-    color: '#4f46e5',
     fontWeight: '500',
   },
   editButton: {
-    backgroundColor: '#4f46e5',
     padding: 16,
     borderRadius: 10,
     alignItems: 'center',
@@ -529,7 +553,6 @@ const styles = StyleSheet.create({
   },
   saveButton: {
     flex: 1,
-    backgroundColor: '#4f46e5',
     padding: 16,
     borderRadius: 10,
     alignItems: 'center',

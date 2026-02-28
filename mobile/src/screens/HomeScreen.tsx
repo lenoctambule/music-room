@@ -15,6 +15,8 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { CompositeNavigationProp, useFocusEffect, useNavigation } from '@react-navigation/native';
 import { RootStackParamList, TabParamList } from '../navigation/AppNavigator';
+import { useTheme } from '../theme/theme-context';
+import { useResponsive } from '../hooks/use-responsive';
 
 type HomeNavProp = CompositeNavigationProp<
   BottomTabNavigationProp<TabParamList, 'Home'>,
@@ -46,6 +48,8 @@ type FeedMode = 'public' | 'mine';
 
 export default function HomeScreen() {
   const navigation = useNavigation<HomeNavProp>();
+  const { colors } = useTheme();
+  const { contentMaxWidth } = useResponsive();
   const userId = useAuthStore(s => s.userId);
   const [events, setEvents] = useState<Event[]>([]);
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
@@ -221,17 +225,21 @@ export default function HomeScreen() {
   if (loading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#4f46e5" />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
+
+  const responsiveList = contentMaxWidth
+    ? { maxWidth: contentMaxWidth, width: '100%' as const, alignSelf: 'center' as const }
+    : undefined;
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
       {/* Feed mode toggle */}
       <View style={styles.feedToggle}>
         <TouchableOpacity
-          style={[styles.feedBtn, feedMode === 'public' && styles.feedBtnActive]}
+          style={[styles.feedBtn, feedMode === 'public' && [styles.feedBtnActive, { backgroundColor: colors.primary }]]}
           onPress={() => switchFeedMode('public')}
         >
           <Text style={[styles.feedBtnText, feedMode === 'public' && styles.feedBtnTextActive]}>
@@ -239,7 +247,7 @@ export default function HomeScreen() {
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.feedBtn, feedMode === 'mine' && styles.feedBtnActive]}
+          style={[styles.feedBtn, feedMode === 'mine' && [styles.feedBtnActive, { backgroundColor: colors.primary }]]}
           onPress={() => switchFeedMode('mine')}
         >
           <Text style={[styles.feedBtnText, feedMode === 'mine' && styles.feedBtnTextActive]}>
@@ -250,18 +258,18 @@ export default function HomeScreen() {
 
       <View style={styles.tabs}>
         <TouchableOpacity
-          style={[styles.tab, activeTab === 'events' && styles.tabActive]}
+          style={[styles.tab, activeTab === 'events' && [styles.tabActive, { borderBottomColor: colors.primary }]]}
           onPress={() => setActiveTab('events')}
         >
-          <Text style={[styles.tabText, activeTab === 'events' && styles.tabTextActive]}>
+          <Text style={[styles.tabText, activeTab === 'events' && [styles.tabTextActive, { color: colors.primary }]]}>
             Evenements ({events.length})
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.tab, activeTab === 'playlists' && styles.tabActive]}
+          style={[styles.tab, activeTab === 'playlists' && [styles.tabActive, { borderBottomColor: colors.primary }]]}
           onPress={() => setActiveTab('playlists')}
         >
-          <Text style={[styles.tabText, activeTab === 'playlists' && styles.tabTextActive]}>
+          <Text style={[styles.tabText, activeTab === 'playlists' && [styles.tabTextActive, { color: colors.primary }]]}>
             Playlists ({playlists.length})
           </Text>
         </TouchableOpacity>
@@ -272,10 +280,10 @@ export default function HomeScreen() {
           data={events}
           keyExtractor={(item) => item.id}
           renderItem={renderEventItem}
-          contentContainerStyle={styles.list}
+          contentContainerStyle={[styles.list, responsiveList]}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
           ListHeaderComponent={
-            <TouchableOpacity style={styles.createButton} onPress={() => navigation.navigate('CreateEvent')}>
+            <TouchableOpacity style={[styles.createButton, { backgroundColor: colors.primary }]} onPress={() => navigation.navigate('CreateEvent')}>
               <Text style={styles.createButtonText}>+ Nouvel evenement</Text>
             </TouchableOpacity>
           }
@@ -288,10 +296,10 @@ export default function HomeScreen() {
           data={playlists}
           keyExtractor={(item) => item.id}
           renderItem={renderPlaylistItem}
-          contentContainerStyle={styles.list}
+          contentContainerStyle={[styles.list, responsiveList]}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
           ListHeaderComponent={
-            <TouchableOpacity style={styles.createButton} onPress={() => navigation.navigate('CreatePlaylist')}>
+            <TouchableOpacity style={[styles.createButton, { backgroundColor: colors.primary }]} onPress={() => navigation.navigate('CreatePlaylist')}>
               <Text style={styles.createButtonText}>+ Nouvelle playlist</Text>
             </TouchableOpacity>
           }
@@ -329,9 +337,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#f0f0f0',
   },
-  feedBtnActive: {
-    backgroundColor: '#4f46e5',
-  },
+  feedBtnActive: {},
   feedBtnText: {
     fontSize: 14,
     fontWeight: '600',
@@ -353,7 +359,6 @@ const styles = StyleSheet.create({
   },
   tabActive: {
     borderBottomWidth: 2,
-    borderBottomColor: '#4f46e5',
   },
   tabText: {
     fontSize: 15,
@@ -361,7 +366,6 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   tabTextActive: {
-    color: '#4f46e5',
     fontWeight: '600',
   },
   list: {
@@ -420,7 +424,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
   createButton: {
-    backgroundColor: '#4f46e5',
     borderRadius: 10,
     padding: 14,
     alignItems: 'center',

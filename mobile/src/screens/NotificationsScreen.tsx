@@ -16,6 +16,8 @@ import { RootStackParamList } from '../navigation/AppNavigator';
 import api from '../services/api';
 import { onFriendRequest } from '../services/socket';
 import { crossAlert } from '../utils/alert';
+import { useTheme } from '../theme/theme-context';
+import { useResponsive } from '../hooks/use-responsive';
 
 interface PendingRequest {
   id: string;
@@ -52,6 +54,8 @@ function getInitials(name: string): string {
 
 export default function NotificationsScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const { colors } = useTheme();
+  const { contentMaxWidth } = useResponsive();
   const [requests, setRequests] = useState<PendingRequest[]>([]);
   const [invitations, setInvitations] = useState<EventInvitation[]>([]);
   const [playlistInvitations, setPlaylistInvitations] = useState<PlaylistInvitation[]>([]);
@@ -194,7 +198,7 @@ export default function NotificationsScreen() {
   if (loading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#4f46e5" />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -204,7 +208,7 @@ export default function NotificationsScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
       <ScrollView
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, contentMaxWidth ? { maxWidth: contentMaxWidth, width: '100%', alignSelf: 'center' as const } : undefined]}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
         {isEmpty ? (
@@ -234,7 +238,7 @@ export default function NotificationsScreen() {
                       </View>
 
                       {busy ? (
-                        <ActivityIndicator size="small" color="#4f46e5" />
+                        <ActivityIndicator size="small" color={colors.primary} />
                       ) : (
                         <View style={styles.actionRow}>
                           <TouchableOpacity
@@ -277,7 +281,7 @@ export default function NotificationsScreen() {
                       </View>
 
                       {busy ? (
-                        <ActivityIndicator size="small" color="#4f46e5" />
+                        <ActivityIndicator size="small" color={colors.primary} />
                       ) : (
                         <View style={styles.actionRow}>
                           <TouchableOpacity
@@ -312,18 +316,18 @@ export default function NotificationsScreen() {
                         style={styles.requestInfo}
                         onPress={() => navigation.navigate('UserProfile', { userId: req.id })}
                       >
-                        <View style={styles.avatar}>
+                        <View style={[styles.avatar, { backgroundColor: colors.primary }]}>
                           <Text style={styles.avatarText}>{getInitials(req.name)}</Text>
                         </View>
                         <View style={styles.textBlock}>
                           <Text style={styles.reqName}>{req.name}</Text>
                           <Text style={styles.reqEmail}>{req.email}</Text>
-                          <Text style={styles.reqLabel}>Demande d'ami</Text>
+                          <Text style={[styles.reqLabel, { color: colors.primary }]}>Demande d'ami</Text>
                         </View>
                       </TouchableOpacity>
 
                       {busy ? (
-                        <ActivityIndicator size="small" color="#4f46e5" />
+                        <ActivityIndicator size="small" color={colors.primary} />
                       ) : (
                         <View style={styles.actionRow}>
                           <TouchableOpacity
@@ -406,7 +410,6 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#4f46e5',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -431,7 +434,6 @@ const styles = StyleSheet.create({
   },
   reqLabel: {
     fontSize: 12,
-    color: '#6366f1',
     marginTop: 3,
     fontWeight: '500',
   },

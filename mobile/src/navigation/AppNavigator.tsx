@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, View } from 'react-native';
+import { ActivityIndicator, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useAuthStore } from '../store/authStore';
 import { connectSocket, onFriendRequest, onInvitation } from '../services/socket';
+import { useResponsive } from '../hooks/use-responsive';
+import { useTheme } from '../theme/theme-context';
 import LoginScreen from '../screens/LoginScreen';
 import RegisterScreen from '../screens/RegisterScreen';
 import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
@@ -45,8 +47,73 @@ export type TabParamList = {
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<TabParamList>();
 
+type SidebarTab = { key: keyof TabParamList; label: string; icon: keyof typeof Ionicons.glyphMap };
+
+const SIDEBAR_TABS: SidebarTab[] = [
+  { key: 'Home', label: 'Accueil', icon: 'home-outline' },
+  { key: 'Friends', label: 'Amis', icon: 'people-outline' },
+  { key: 'Notifications', label: 'Notifications', icon: 'notifications-outline' },
+  { key: 'Profile', label: 'Profil', icon: 'person-outline' },
+];
+
+const TAB_SCREENS: Record<keyof TabParamList, () => JSX.Element> = {
+  Home: HomeScreen,
+  Friends: FriendsScreen,
+  Notifications: NotificationsScreen,
+  Profile: ProfileScreen,
+};
+
+// Desktop sidebar layout — replaces bottom tabs on wide screens
+function DesktopSidebar({ notifCount, onNotifReset }: { notifCount: number; onNotifReset: () => void }) {
+  const [activeTab, setActiveTab] = useState<keyof TabParamList>('Home');
+  const { colors } = useTheme();
+  const ActiveScreen = TAB_SCREENS[activeTab];
+
+  const handleTabPress = (key: keyof TabParamList) => {
+    if (key === 'Notifications') onNotifReset();
+    setActiveTab(key);
+  };
+
+  return (
+    <View style={sidebarStyles.container}>
+      <View style={sidebarStyles.sidebar}>
+        <Text style={sidebarStyles.logo}>Music Room</Text>
+        {SIDEBAR_TABS.map(tab => {
+          const isActive = activeTab === tab.key;
+          return (
+            <TouchableOpacity
+              key={tab.key}
+              style={[sidebarStyles.sidebarItem, isActive && { backgroundColor: colors.primaryLight }]}
+              onPress={() => handleTabPress(tab.key)}
+            >
+              <Ionicons
+                name={tab.icon}
+                size={22}
+                color={isActive ? colors.primary : '#666'}
+              />
+              <Text style={[sidebarStyles.sidebarLabel, isActive && { color: colors.primary, fontWeight: '600' }]}>
+                {tab.label}
+              </Text>
+              {tab.key === 'Notifications' && notifCount > 0 && (
+                <View style={sidebarStyles.badge}>
+                  <Text style={sidebarStyles.badgeText}>{notifCount}</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+      <View style={sidebarStyles.content}>
+        <ActiveScreen />
+      </View>
+    </View>
+  );
+}
+
 function MainTabs() {
   const [notifCount, setNotifCount] = useState(0);
+  const { isDesktop } = useResponsive();
+  const { colors } = useTheme();
 
   useEffect(() => {
     connectSocket();
@@ -59,10 +126,19 @@ function MainTabs() {
     return () => { unsubFriend(); unsubInvite(); };
   }, []);
 
+  if (isDesktop) {
+    return (
+      <DesktopSidebar
+        notifCount={notifCount}
+        onNotifReset={() => setNotifCount(0)}
+      />
+    );
+  }
+
   return (
     <Tab.Navigator
       screenOptions={{
-        tabBarActiveTintColor: '#4f46e5',
+        tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: '#999',
         tabBarLabelStyle: { fontSize: 12, fontWeight: '500' },
         headerShown: true,
@@ -181,3 +257,59 @@ export default function AppNavigator() {
     </NavigationContainer>
   );
 }
+
+const sidebarStyles = StyleSheet.create({
+  container: {
+    flex: 1,
+    flexDirection: 'row',
+  },
+  sidebar: {
+    width: 240,
+    backgroundColor: '#fff',
+    borderRightWidth: 1,
+    borderRightColor: '#e5e5e5',
+    paddingTop: 20,
+    paddingHorizontal: 12,
+  },
+  logo: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1a1a1a',
+    paddingHorizontal: 12,
+    paddingBottom: 24,
+    paddingTop: 8,
+  },
+  sidebarItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    marginBottom: 4,
+    gap: 12,
+  },
+  sidebarLabel: {
+    fontSize: 15,
+    color: '#666',
+    fontWeight: '500',
+    flex: 1,
+  },
+  badge: {
+    backgroundColor: '#ef4444',
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 6,
+  },
+  badgeText: {
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  content: {
+    flex: 1,
+    backgroundColor: '#f5f5f5',
+  },
+});
