@@ -22,7 +22,9 @@ type HomeNavProp = CompositeNavigationProp<
   BottomTabNavigationProp<TabParamList, 'Home'>,
   NativeStackNavigationProp<RootStackParamList>
 >;
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuthStore } from '../store/authStore';
+import { useNetworkStore } from '../store/networkStore';
 import api from '../services/api';
 import { getSocket, connectSocket } from '../services/socket';
 
@@ -46,11 +48,15 @@ interface Playlist {
 
 type FeedMode = 'public' | 'mine';
 
+const CACHE_EVENTS_KEY = 'cache:events';
+const CACHE_PLAYLISTS_KEY = 'cache:playlists';
+
 export default function HomeScreen() {
   const navigation = useNavigation<HomeNavProp>();
   const { colors } = useTheme();
   const { contentMaxWidth } = useResponsive();
   const userId = useAuthStore(s => s.userId);
+  const isConnected = useNetworkStore(s => s.isConnected);
   const [events, setEvents] = useState<Event[]>([]);
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
   const [loading, setLoading] = useState(true);
@@ -58,7 +64,28 @@ export default function HomeScreen() {
   const [activeTab, setActiveTab] = useState<'events' | 'playlists'>('events');
   const [feedMode, setFeedMode] = useState<FeedMode>('public');
 
+  const loadCachedData = useCallback(async () => {
+    try {
+      const [cachedEvents, cachedPlaylists] = await Promise.all([
+        AsyncStorage.getItem(CACHE_EVENTS_KEY),
+        AsyncStorage.getItem(CACHE_PLAYLISTS_KEY),
+      ]);
+      if (cachedEvents) setEvents(JSON.parse(cachedEvents));
+      if (cachedPlaylists) setPlaylists(JSON.parse(cachedPlaylists));
+    } catch {
+      // cache read failed, ignore
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, []);
+
   const fetchData = useCallback(async () => {
+    if (!isConnected) {
+      loadCachedData();
+      return;
+    }
+
     try {
       const eventsUrl = feedMode === 'mine' ? '/events/me' : '/events';
       const playlistsUrl = feedMode === 'mine' ? '/playlists/me' : '/playlists';
@@ -68,13 +95,20 @@ export default function HomeScreen() {
       ]);
       setEvents(eventsRes.data.data);
       setPlaylists(playlistsRes.data.data);
+
+      // Save to cache for offline use (only public feed)
+      if (feedMode === 'public') {
+        AsyncStorage.setItem(CACHE_EVENTS_KEY, JSON.stringify(eventsRes.data.data)).catch(() => {});
+        AsyncStorage.setItem(CACHE_PLAYLISTS_KEY, JSON.stringify(playlistsRes.data.data)).catch(() => {});
+      }
     } catch {
-      // silent
+      // Network error — try loading from cache
+      loadCachedData();
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [feedMode]);
+  }, [feedMode, isConnected, loadCachedData]);
 
   // Fetch on screen focus
   useFocusEffect(
@@ -283,9 +317,11 @@ export default function HomeScreen() {
           contentContainerStyle={[styles.list, responsiveList]}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
           ListHeaderComponent={
-            <TouchableOpacity style={[styles.createButton, { backgroundColor: colors.primary }]} onPress={() => navigation.navigate('CreateEvent')}>
-              <Text style={styles.createButtonText}>+ Nouvel evenement</Text>
-            </TouchableOpacity>
+            isConnected ? (
+              <TouchableOpacity style={[styles.createButton, { backgroundColor: colors.primary }]} onPress={() => navigation.navigate('CreateEvent')}>
+                <Text style={styles.createButtonText}>+ Nouvel evenement</Text>
+              </TouchableOpacity>
+            ) : null
           }
           ListEmptyComponent={
             <Text style={styles.emptyText}>Aucun evenement pour le moment</Text>
@@ -299,9 +335,11 @@ export default function HomeScreen() {
           contentContainerStyle={[styles.list, responsiveList]}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
           ListHeaderComponent={
-            <TouchableOpacity style={[styles.createButton, { backgroundColor: colors.primary }]} onPress={() => navigation.navigate('CreatePlaylist')}>
-              <Text style={styles.createButtonText}>+ Nouvelle playlist</Text>
-            </TouchableOpacity>
+            isConnected ? (
+              <TouchableOpacity style={[styles.createButton, { backgroundColor: colors.primary }]} onPress={() => navigation.navigate('CreatePlaylist')}>
+                <Text style={styles.createButtonText}>+ Nouvelle playlist</Text>
+              </TouchableOpacity>
+            ) : null
           }
           ListEmptyComponent={
             <Text style={styles.emptyText}>Aucune playlist pour le moment</Text>

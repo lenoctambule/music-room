@@ -16,6 +16,7 @@ import * as Location from 'expo-location';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { useAuthStore } from '../store/authStore';
+import { useNetworkStore, queueOfflineVote } from '../store/networkStore';
 import api from '../services/api';
 import { crossAlert } from '../utils/alert';
 import { getSocket, connectSocket } from '../services/socket';
@@ -222,6 +223,20 @@ export default function EventScreen({ route, navigation }: Props) {
   };
 
   const handleVote = async (trackId: string) => {
+    const isConnected = useNetworkStore.getState().isConnected;
+
+    // Offline: queue the vote for later sync
+    if (!isConnected) {
+      await queueOfflineVote({ eventId, trackId });
+      // Optimistic local update
+      setTracks(prev =>
+        prev.map(t => t.id === trackId ? { ...t, voteCount: t.voteCount + 1 } : t)
+          .sort((a, b) => b.voteCount - a.voteCount)
+      );
+      crossAlert('Hors-ligne', 'Vote sauvegarde hors-ligne. Il sera envoye au retour de la connexion.');
+      return;
+    }
+
     setVotingId(trackId);
     try {
       const body: Record<string, number> = {};
