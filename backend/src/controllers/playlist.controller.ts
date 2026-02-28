@@ -124,10 +124,12 @@ export async function inviteUser(req: Request, res: Response, next: NextFunction
     const io = getIO();
     if (io) {
       const playlist = await playlistService.getPlaylist(playlistId, req.user!.userId);
-      io.to(`user:${req.body.userId}`).emit('invitationReceived', {
-        type: 'playlist',
-        name: playlist.name,
-      });
+      if (playlist) {
+        io.to(`user:${req.body.userId}`).emit('invitationReceived', {
+          type: 'playlist',
+          name: playlist.name,
+        });
+      }
     }
   } catch (err) {
     next(err);
@@ -138,6 +140,33 @@ export async function getPlaylistTracks(req: Request, res: Response, next: NextF
   try {
     const tracks = await playlistService.getPlaylistTracks(req.params.id as string, req.user!.userId);
     res.json({ success: true, data: tracks });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function listPendingInvitations(req: Request, res: Response, next: NextFunction) {
+  try {
+    const data = await playlistService.listPendingInvitations(req.user!.userId);
+    res.json({ success: true, data });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function acceptInvitation(req: Request, res: Response, next: NextFunction) {
+  try {
+    await playlistService.acceptInvitation(req.params.id as string, req.user!.userId);
+    res.json({ success: true });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function rejectInvitation(req: Request, res: Response, next: NextFunction) {
+  try {
+    await playlistService.rejectInvitation(req.params.id as string, req.user!.userId);
+    res.status(204).send();
   } catch (err) {
     next(err);
   }

@@ -16,11 +16,11 @@ async function assertCanView(playlistId: string, userId: string) {
   // Public → everyone can view
   if (playlist.isPublic) return playlist;
 
-  // Private → members only
+  // Private → accepted members only
   const member = await prisma.playlistMember.findUnique({
     where: { playlistId_userId: { playlistId, userId } },
   });
-  if (!member) {
+  if (!member || member.status !== 'ACCEPTED') {
     throw Object.assign(new Error('Playlist not found'), { status: 404 });
   }
 
@@ -37,11 +37,11 @@ async function assertCanEdit(playlistId: string, userId: string) {
   // OPEN → everyone can edit
   if (playlist.licenseType === 'OPEN') return playlist;
 
-  // INVITE_ONLY → must be a member with canEdit = true
+  // INVITE_ONLY → must be an accepted member with canEdit = true
   const member = await prisma.playlistMember.findUnique({
     where: { playlistId_userId: { playlistId, userId } },
   });
-  if (!member || !member.canEdit) {
+  if (!member || member.status !== 'ACCEPTED' || !member.canEdit) {
     throw Object.assign(new Error('You do not have edit access'), { status: 403 });
   }
 
@@ -54,7 +54,7 @@ export async function createPlaylist(data: CreatePlaylistInput, userId: string) 
       ...data,
       creatorId: userId,
       members: {
-        create: { userId, canEdit: true },
+        create: { userId, canEdit: true, status: 'ACCEPTED' },
       },
     },
   });
@@ -77,7 +77,7 @@ export async function getPlaylist(playlistId: string, userId: string) {
   const member = await prisma.playlistMember.findUnique({
     where: { playlistId_userId: { playlistId, userId } },
   });
-  if (member) {
+  if (member && member.status === 'ACCEPTED') {
     membership = { canEdit: member.canEdit };
   }
 
@@ -98,7 +98,7 @@ export async function listPlaylists() {
 export async function listMyPlaylists(userId: string) {
   return prisma.playlist.findMany({
     where: {
-      members: { some: { userId } },
+      members: { some: { userId, status: 'ACCEPTED' } },
     },
     include: {
       creator: { select: { id: true, name: true } },
@@ -194,7 +194,6 @@ export async function reorderTrack(
     const clampedNew = Math.min(newPosition, trackCount - 1);
 
     if (oldPosition < clampedNew) {
-      // Moving down: shift tracks between [old+1, new] up
       await tx.playlistTrack.updateMany({
         where: {
           playlistId,
@@ -203,7 +202,6 @@ export async function reorderTrack(
         data: { position: { decrement: 1 } },
       });
     } else {
-      // Moving up: shift tracks between [new, old-1] down
       await tx.playlistTrack.updateMany({
         where: {
           playlistId,
@@ -246,8 +244,54 @@ export async function inviteUser(playlistId: string, userId: string, data: Invit
       playlistId,
       userId: data.userId,
       canEdit: data.canEdit ?? true,
+      status: 'INVITED',
     },
   });
+}
+
+export async function listPendingInvitations(userId: string) {
+  const memberships = await prisma.playlistMember.findMany({
+    where: { userId, status: 'INVITED' },
+    include: {
+      playlist: {
+        include: {
+          creator: { select: { id: true, name: true } },
+        },
+      },
+    },
+    orderBy: { joinedAt: 'desc' },
+  });
+
+  return memberships.map(m => ({
+    invitationId: m.id,
+    playlist: m.playlist,
+    canEdit: m.canEdit,
+  }));
+}
+
+export async function acceptInvitation(playlistId: string, userId: string) {
+  const member = await prisma.playlistMember.findUnique({
+    where: { playlistId_userId: { playlistId, userId } },
+  });
+  if (!member || member.status !== 'INVITED') {
+    throw Object.assign(new Error('No pending invitation'), { status: 404 });
+  }
+
+  return prisma.playlistMember.update({
+    where: { id: member.id },
+    data: { status: 'ACCEPTED' },
+  });
+}
+
+export async function rejectInvitation(playlistId: string, userId: string) {
+  const member = await prisma.playlistMember.findUnique({
+    where: { playlistId_userId: { playlistId, userId } },
+  });
+  if (!member || member.status !== 'INVITED') {
+    throw Object.assign(new Error('No pending invitation'), { status: 404 });
+  }
+
+  await prisma.playlistMember.delete({ where: { id: member.id } });
 }
 
 export async function getPlaylistTracks(playlistId: string, userId: string) {

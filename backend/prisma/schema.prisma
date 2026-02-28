@@ -176,6 +176,7 @@ model PlaylistMember {
   playlistId String
   userId     String
   canEdit    Boolean @default(true)
+  status     String  @default("ACCEPTED") // INVITED | ACCEPTED
 
   playlist Playlist @relation(fields: [playlistId], references: [id], onDelete: Cascade)
   user     User     @relation(fields: [userId], references: [id])

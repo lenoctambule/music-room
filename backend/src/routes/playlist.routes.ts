@@ -44,6 +44,20 @@ router.get('/me', playlistController.listMyPlaylists);
 
 /**
  * @swagger
+ * /playlists/invitations:
+ *   get:
+ *     summary: List pending playlist invitations for current user
+ *     tags: [Playlists]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of pending invitations
+ */
+router.get('/invitations', playlistController.listPendingInvitations);
+
+/**
+ * @swagger
  * /playlists:
  *   post:
  *     summary: Create a playlist
@@ -314,5 +328,49 @@ router.put('/:id/tracks/:trackId/position', validate(reorderTrackSchema), playli
  *         description: Already a member
  */
 router.post('/:id/invite', validate(inviteUserSchema), playlistController.inviteUser);
+
+/**
+ * @swagger
+ * /playlists/{id}/accept:
+ *   post:
+ *     summary: Accept a playlist invitation
+ *     tags: [Playlists]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Invitation accepted
+ *       404:
+ *         description: No pending invitation
+ */
+router.post('/:id/accept', playlistController.acceptInvitation);
+
+/**
+ * @swagger
+ * /playlists/{id}/reject:
+ *   delete:
+ *     summary: Reject a playlist invitation
+ *     tags: [Playlists]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       204:
+ *         description: Invitation rejected
+ *       404:
+ *         description: No pending invitation
+ */
+router.delete('/:id/reject', playlistController.rejectInvitation);
 
 export default router;

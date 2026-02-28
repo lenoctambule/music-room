@@ -35,6 +35,17 @@ interface EventInvitation {
   };
 }
 
+interface PlaylistInvitation {
+  invitationId: string;
+  playlist: {
+    id: string;
+    name: string;
+    description: string | null;
+    creator: { id: string; name: string };
+  };
+  canEdit: boolean;
+}
+
 function getInitials(name: string): string {
   return name.split(' ').map(w => w[0]).filter(Boolean).slice(0, 2).join('').toUpperCase();
 }
@@ -43,6 +54,7 @@ export default function NotificationsScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [requests, setRequests] = useState<PendingRequest[]>([]);
   const [invitations, setInvitations] = useState<EventInvitation[]>([]);
+  const [playlistInvitations, setPlaylistInvitations] = useState<PlaylistInvitation[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -71,12 +83,14 @@ export default function NotificationsScreen() {
 
   const loadAll = async () => {
     try {
-      const [friendRes, inviteRes] = await Promise.all([
+      const [friendRes, inviteRes, playlistInviteRes] = await Promise.all([
         api.get('/users/friend-requests/pending'),
         api.get('/events/invitations'),
+        api.get('/playlists/invitations'),
       ]);
       setRequests(friendRes.data.data);
       setInvitations(inviteRes.data.data);
+      setPlaylistInvitations(playlistInviteRes.data.data);
     } catch {
       // silent
     } finally {
@@ -148,6 +162,35 @@ export default function NotificationsScreen() {
     }
   };
 
+  const handleAcceptPlaylist = async (playlistId: string) => {
+    setBusyId(`playlist-${playlistId}`);
+    try {
+      await api.post(`/playlists/${playlistId}/accept`);
+      setPlaylistInvitations(prev => prev.filter(i => i.playlist.id !== playlistId));
+      crossAlert('Succes', 'Invitation acceptee');
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { error?: string } } }).response?.data?.error
+        || 'Impossible d\'accepter';
+      crossAlert('Erreur', msg);
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const handleRejectPlaylist = async (playlistId: string) => {
+    setBusyId(`playlist-${playlistId}`);
+    try {
+      await api.delete(`/playlists/${playlistId}/reject`);
+      setPlaylistInvitations(prev => prev.filter(i => i.playlist.id !== playlistId));
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { error?: string } } }).response?.data?.error
+        || 'Impossible de refuser';
+      crossAlert('Erreur', msg);
+    } finally {
+      setBusyId(null);
+    }
+  };
+
   if (loading) {
     return (
       <View style={styles.centered}>
@@ -156,7 +199,7 @@ export default function NotificationsScreen() {
     );
   }
 
-  const isEmpty = requests.length === 0 && invitations.length === 0;
+  const isEmpty = requests.length === 0 && invitations.length === 0 && playlistInvitations.length === 0;
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
@@ -203,6 +246,49 @@ export default function NotificationsScreen() {
                           <TouchableOpacity
                             style={styles.rejectBtn}
                             onPress={() => handleRejectEvent(inv.event.id)}
+                          >
+                            <Ionicons name="close" size={20} color="#fff" />
+                          </TouchableOpacity>
+                        </View>
+                      )}
+                    </View>
+                  );
+                })}
+              </>
+            )}
+
+            {/* Playlist invitations */}
+            {playlistInvitations.length > 0 && (
+              <>
+                <Text style={styles.sectionTitle}>Invitations playlists</Text>
+                {playlistInvitations.map(inv => {
+                  const busy = busyId === `playlist-${inv.playlist.id}`;
+                  return (
+                    <View key={inv.invitationId} style={styles.requestCard}>
+                      <View style={styles.requestInfo}>
+                        <View style={[styles.avatar, { backgroundColor: '#059669' }]}>
+                          <Ionicons name="list" size={20} color="#fff" />
+                        </View>
+                        <View style={styles.textBlock}>
+                          <Text style={styles.reqName} numberOfLines={1}>{inv.playlist.name}</Text>
+                          <Text style={styles.reqEmail}>Par {inv.playlist.creator.name}</Text>
+                          <Text style={styles.inviteLabel}>Invitation a une playlist</Text>
+                        </View>
+                      </View>
+
+                      {busy ? (
+                        <ActivityIndicator size="small" color="#4f46e5" />
+                      ) : (
+                        <View style={styles.actionRow}>
+                          <TouchableOpacity
+                            style={styles.acceptBtn}
+                            onPress={() => handleAcceptPlaylist(inv.playlist.id)}
+                          >
+                            <Ionicons name="checkmark" size={20} color="#fff" />
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={styles.rejectBtn}
+                            onPress={() => handleRejectPlaylist(inv.playlist.id)}
                           >
                             <Ionicons name="close" size={20} color="#fff" />
                           </TouchableOpacity>
