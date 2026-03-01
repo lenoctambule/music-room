@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -18,6 +18,7 @@ import { RootStackParamList, TabParamList } from '../navigation/AppNavigator';
 import OfflineBanner from '../components/OfflineBanner';
 import { useTheme } from '../theme/theme-context';
 import { useResponsive } from '../hooks/use-responsive';
+import * as Location from 'expo-location';
 
 type HomeNavProp = CompositeNavigationProp<
   BottomTabNavigationProp<TabParamList, 'Home'>,
@@ -36,6 +37,25 @@ interface Event {
   licenseType: string;
   isPublic: boolean;
   creatorId: string;
+  latitude: number | null;
+  longitude: number | null;
+}
+
+const IBEACON_RADIUS_KM = 5;
+
+// Haversine formula — returns distance in km between two GPS coords
+function haversineDistance(
+  lat1: number, lon1: number,
+  lat2: number, lon2: number,
+): number {
+  const R = 6371;
+  const toRad = (deg: number) => (deg * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
 interface Playlist {
@@ -64,6 +84,9 @@ export default function HomeScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState<'events' | 'playlists'>('events');
   const [feedMode, setFeedMode] = useState<FeedMode>('public');
+  const [nearbyEvent, setNearbyEvent] = useState<{ event: Event; distanceKm: number } | null>(null);
+  const [bannerDismissed, setBannerDismissed] = useState(false);
+  const proximityChecked = useRef(false);
 
   const loadCachedData = useCallback(async () => {
     try {
@@ -145,6 +168,43 @@ export default function HomeScreen() {
       socket.off('playlistCreated', handlePlaylistCreated);
     };
   }, [feedMode]);
+
+  // iBeacon simulation — scan for nearby LOCATION_TIME events
+  useEffect(() => {
+    if (proximityChecked.current || feedMode !== 'public' || events.length === 0) return;
+
+    const geoEvents = events.filter(e => e.latitude != null && e.longitude != null);
+    if (geoEvents.length === 0) return;
+
+    proximityChecked.current = true;
+
+    (async () => {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted') return;
+
+        const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+        const userLat = loc.coords.latitude;
+        const userLon = loc.coords.longitude;
+
+        let closest: { event: Event; distanceKm: number } | null = null;
+
+        for (const ev of geoEvents) {
+          const dist = haversineDistance(userLat, userLon, ev.latitude!, ev.longitude!);
+          if (dist <= IBEACON_RADIUS_KM && (!closest || dist < closest.distanceKm)) {
+            closest = { event: ev, distanceKm: dist };
+          }
+        }
+
+        if (closest) {
+          setNearbyEvent(closest);
+          setBannerDismissed(false);
+        }
+      } catch {
+        // Location unavailable, silently ignore
+      }
+    })();
+  }, [events, feedMode]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -272,6 +332,34 @@ export default function HomeScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
       <OfflineBanner />
+
+      {/* iBeacon proximity banner */}
+      {nearbyEvent && !bannerDismissed && (
+        <TouchableOpacity
+          style={styles.beaconBanner}
+          onPress={() => navigation.navigate('Event', { eventId: nearbyEvent.event.id })}
+          activeOpacity={0.85}
+        >
+          <View style={styles.beaconContent}>
+            <Ionicons name="radio-outline" size={22} color="#fff" />
+            <View style={styles.beaconTextWrap}>
+              <Text style={styles.beaconTitle} numberOfLines={1}>
+                {nearbyEvent.event.name}
+              </Text>
+              <Text style={styles.beaconSubtitle}>
+                Evenement a {nearbyEvent.distanceKm.toFixed(1)} km — Appuyez pour rejoindre
+              </Text>
+            </View>
+          </View>
+          <TouchableOpacity
+            onPress={() => setBannerDismissed(true)}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Ionicons name="close" size={20} color="#ffffffcc" />
+          </TouchableOpacity>
+        </TouchableOpacity>
+      )}
+
       {/* Feed mode toggle */}
       <View style={styles.feedToggle}>
         <TouchableOpacity
@@ -477,5 +565,32 @@ const styles = StyleSheet.create({
   deleteBtn: {
     padding: 4,
     marginLeft: 6,
+  },
+  beaconBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#6366f1',
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  beaconContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    gap: 10,
+  },
+  beaconTextWrap: {
+    flex: 1,
+  },
+  beaconTitle: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  beaconSubtitle: {
+    color: '#ffffffcc',
+    fontSize: 12,
+    marginTop: 2,
   },
 });
