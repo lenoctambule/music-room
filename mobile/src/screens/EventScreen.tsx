@@ -70,7 +70,7 @@ export default function EventScreen({ route, navigation }: Props) {
   const [invitingId, setInvitingId] = useState<string | null>(null);
 
   const canParticipate = event
-    ? event.licenseType === 'OPEN' || event.licenseType === 'LOCATION_TIME' || event.membership !== null
+    ? event.licenseType === 'OPEN' || event.licenseType === 'LOCATION_TIME' || (event.membership !== null && event.membership.role !== 'INVITED')
     : false;
 
   useEffect(() => {

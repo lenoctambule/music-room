@@ -49,6 +49,13 @@ async function assertCanEdit(playlistId: string, userId: string) {
 }
 
 export async function createPlaylist(data: CreatePlaylistInput, userId: string) {
+  const existing = await prisma.playlist.findFirst({
+    where: { name: data.name, creatorId: userId },
+  });
+  if (existing) {
+    throw Object.assign(new Error('You already have a playlist with this name'), { status: 409 });
+  }
+
   return prisma.playlist.create({
     data: {
       ...data,

@@ -110,7 +110,7 @@ export async function addTrack(req: Request, res: Response, next: NextFunction) 
     // Broadcast updated track list via Socket.io
     const io = getIO();
     if (io) {
-      const tracks = await eventService.getEventTracks(eventId);
+      const tracks = await eventService.getEventTracks(eventId, req.user!.userId);
       io.to(`event:${eventId}`).emit('trackAdded', { eventId, tracks });
     }
 
@@ -122,7 +122,7 @@ export async function addTrack(req: Request, res: Response, next: NextFunction) 
 
 export async function getEventTracks(req: Request, res: Response, next: NextFunction) {
   try {
-    const tracks = await eventService.getEventTracks(req.params.id as string);
+    const tracks = await eventService.getEventTracks(req.params.id as string, req.user!.userId);
     res.json({ success: true, data: tracks });
   } catch (err) {
     next(err);
@@ -167,7 +167,7 @@ export async function voteForTrack(req: Request, res: Response, next: NextFuncti
     // Emit updated track list via Socket.io
     const io = getIO();
     if (io) {
-      const tracks = await eventService.getEventTracks(eventId);
+      const tracks = await eventService.getEventTracks(eventId, req.user!.userId);
       io.to(`event:${eventId}`).emit('trackVoted', { eventId, tracks });
     }
 

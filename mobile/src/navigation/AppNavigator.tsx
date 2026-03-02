@@ -7,6 +7,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { useAuthStore } from '../store/authStore';
 import { useNetworkListener } from '../store/networkStore';
 import { connectSocket, onFriendRequest, onInvitation } from '../services/socket';
+import api from '../services/api';
 import { useResponsive } from '../hooks/use-responsive';
 import { useTheme } from '../theme/theme-context';
 import LoginScreen from '../screens/LoginScreen';
@@ -28,7 +29,7 @@ export type RootStackParamList = {
   Login: undefined;
   Register: undefined;
   ForgotPassword: undefined;
-  ResetPassword: undefined;
+  ResetPassword: { email: string };
   EmailVerification: { email: string };
   MainTabs: undefined;
   CreateEvent: undefined;
@@ -120,6 +121,14 @@ function MainTabs() {
 
   useEffect(() => {
     connectSocket();
+
+    // Load premium status early so CreatePlaylist doesn't show the gate
+    api.get('/users/me')
+      .then(({ data }) => {
+        useAuthStore.getState().setIsPremium(data.data.isPremium);
+      })
+      .catch(() => {});
+
     const unsubFriend = onFriendRequest(() => {
       setNotifCount(prev => prev + 1);
     });

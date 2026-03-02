@@ -52,8 +52,8 @@ export async function forgotPassword(req: Request, res: Response, next: NextFunc
 
 export async function resetPassword(req: Request, res: Response, next: NextFunction) {
   try {
-    const { token, password } = req.body;
-    const result = await authService.resetPassword(token, password);
+    const { email, code, password } = req.body;
+    const result = await authService.resetPassword(email, code, password);
     res.json({ success: true, data: result });
   } catch (err) {
     next(err);

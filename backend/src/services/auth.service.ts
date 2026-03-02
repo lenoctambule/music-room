@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 import crypto from 'node:crypto';
 import prisma from '../lib/prisma.js';
 import type { RegisterInput } from '../schemas/auth.schema.js';
+import { sendVerificationCode, sendPasswordResetCode } from './mail.service.js';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
 const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'dev-refresh-secret';
@@ -30,10 +31,8 @@ export async function register(data: RegisterInput) {
   }
 
   const hashedPassword = await bcrypt.hash(data.password, 10);
-
-  // Generate a 6-digit verification code
   const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
-  const verificationCodeExpiry = new Date(Date.now() + 15 * 60 * 1000); // 15 min
+  const verificationCodeExpiry = new Date(Date.now() + 15 * 60 * 1000);
 
   const user = await prisma.user.create({
     data: {
@@ -45,7 +44,8 @@ export async function register(data: RegisterInput) {
     },
   });
 
-  console.log(`[EMAIL VERIFICATION] Code for ${user.email}: ${verificationCode}`);
+  sendVerificationCode(user.email, verificationCode)
+    .catch(err => console.error('[MAIL] Failed to send verification code:', err.message));
 
   const tokens = generateTokens(user);
 
@@ -64,6 +64,10 @@ export async function login(email: string, password: string) {
   const valid = await bcrypt.compare(password, user.password);
   if (!valid) {
     throw Object.assign(new Error('Invalid credentials'), { status: 401 });
+  }
+
+  if (!user.emailVerified) {
+    throw Object.assign(new Error('Please verify your email before logging in'), { status: 403 });
   }
 
   const tokens = generateTokens(user);
@@ -124,32 +128,32 @@ export async function verifyEmail(email: string, code: string) {
 
 export async function forgotPassword(email: string) {
   const user = await prisma.user.findUnique({ where: { email } });
-  // Don't reveal whether the email exists
-  if (!user) return { message: 'If this email exists, a reset link has been sent' };
+  if (!user) return { message: 'If this email exists, a reset code has been sent' };
 
-  const resetToken = crypto.randomBytes(32).toString('hex');
-  const resetTokenExpiry = new Date(Date.now() + 30 * 60 * 1000); // 30 min
+  const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
+  const passwordResetExpires = new Date(Date.now() + 60 * 60 * 1000); // 1h
 
   await prisma.user.update({
     where: { id: user.id },
-    data: { resetToken, resetTokenExpiry },
+    data: { passwordResetToken: resetCode, passwordResetExpires },
   });
 
-  console.log(`[PASSWORD RESET] Token for ${email}: ${resetToken}`);
+  sendPasswordResetCode(email, resetCode)
+    .catch(err => console.error('[MAIL] Failed to send reset code:', err.message));
 
-  return { message: 'If this email exists, a reset link has been sent' };
+  return { message: 'If this email exists, a reset code has been sent' };
 }
 
-export async function resetPassword(token: string, newPassword: string) {
-  const user = await prisma.user.findFirst({
-    where: {
-      resetToken: token,
-      resetTokenExpiry: { gt: new Date() },
-    },
-  });
+export async function resetPassword(email: string, code: string, newPassword: string) {
+  const user = await prisma.user.findUnique({ where: { email } });
 
-  if (!user) {
-    throw Object.assign(new Error('Invalid or expired reset token'), { status: 400 });
+  if (
+    !user ||
+    user.passwordResetToken !== code ||
+    !user.passwordResetExpires ||
+    user.passwordResetExpires < new Date()
+  ) {
+    throw Object.assign(new Error('Invalid or expired reset code'), { status: 400 });
   }
 
   const hashedPassword = await bcrypt.hash(newPassword, 10);
@@ -158,8 +162,8 @@ export async function resetPassword(token: string, newPassword: string) {
     where: { id: user.id },
     data: {
       password: hashedPassword,
-      resetToken: null,
-      resetTokenExpiry: null,
+      passwordResetToken: null,
+      passwordResetExpires: null,
     },
   });
 

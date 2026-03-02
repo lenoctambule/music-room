@@ -167,10 +167,14 @@ router.post('/forgot-password', authLimiter, validate(forgotPasswordSchema), aut
  *         application/json:
  *           schema:
  *             type: object
- *             required: [token, password]
+ *             required: [email, code, password]
  *             properties:
- *               token:
+ *               email:
  *                 type: string
+ *                 example: jean@example.com
+ *               code:
+ *                 type: string
+ *                 example: "482917"
  *               password:
  *                 type: string
  *                 example: newpassword123
@@ -178,7 +182,7 @@ router.post('/forgot-password', authLimiter, validate(forgotPasswordSchema), aut
  *       200:
  *         description: Password updated
  *       400:
- *         description: Invalid or expired token
+ *         description: Invalid or expired code
  */
 router.post('/reset-password', validate(resetPasswordSchema), authController.resetPassword);
 

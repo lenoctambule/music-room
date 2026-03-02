@@ -2,6 +2,13 @@ import prisma from '../lib/prisma.js';
 import type { CreateEventInput, UpdateEventInput, AddTrackInput } from '../schemas/event.schema.js';
 
 export async function createEvent(data: CreateEventInput, userId: string) {
+  const existing = await prisma.event.findFirst({
+    where: { name: data.name, creatorId: userId },
+  });
+  if (existing) {
+    throw Object.assign(new Error('You already have an event with this name'), { status: 409 });
+  }
+
   const event = await prisma.event.create({
     data: {
       ...data,
@@ -31,12 +38,22 @@ export async function getEvent(eventId: string, userId?: string) {
   }
 
   let membership = null;
+  let member = null;
   if (userId) {
-    const member = await prisma.eventMember.findUnique({
+    member = await prisma.eventMember.findUnique({
       where: { eventId_userId: { eventId, userId } },
     });
     if (member) {
       membership = { role: member.role };
+    }
+  }
+
+  // Private events: only accepted members and creator can access
+  if (!event.isPublic) {
+    const isCreator = userId && event.creatorId === userId;
+    const isAcceptedMember = member && member.role !== 'INVITED';
+    if (!isCreator && !isAcceptedMember) {
+      throw Object.assign(new Error('Event not found'), { status: 404 });
     }
   }
 
@@ -57,7 +74,7 @@ export async function listEvents() {
 export async function listMyEvents(userId: string) {
   return prisma.event.findMany({
     where: {
-      members: { some: { userId } },
+      members: { some: { userId, role: { not: 'INVITED' } } },
     },
     include: {
       creator: { select: { id: true, name: true } },
@@ -249,10 +266,23 @@ export async function addTrack(eventId: string, data: AddTrackInput, userId: str
   });
 }
 
-export async function getEventTracks(eventId: string) {
+export async function getEventTracks(eventId: string, userId?: string) {
   const event = await prisma.event.findUnique({ where: { id: eventId } });
   if (!event) {
     throw Object.assign(new Error('Event not found'), { status: 404 });
+  }
+
+  // Private events: check access
+  if (!event.isPublic) {
+    const isCreator = userId && event.creatorId === userId;
+    if (!isCreator) {
+      const member = userId
+        ? await prisma.eventMember.findUnique({ where: { eventId_userId: { eventId, userId } } })
+        : null;
+      if (!member || member.role === 'INVITED') {
+        throw Object.assign(new Error('Event not found'), { status: 404 });
+      }
+    }
   }
 
   return prisma.track.findMany({

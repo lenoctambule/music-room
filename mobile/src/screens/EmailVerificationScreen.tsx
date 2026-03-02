@@ -60,9 +60,7 @@ export default function EmailVerificationScreen({ route, navigation }: Props) {
         <Text style={styles.subtitle}>
           A 6-digit code was sent to {email}
         </Text>
-        <Text style={styles.hint}>
-          (In dev mode, the code is displayed in server logs)
-        </Text>
+        <Text style={styles.hint}>Check your inbox (or spam folder)</Text>
 
         <TextInput
           style={[styles.codeInput, { borderColor: colors.primary }]}

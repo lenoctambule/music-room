@@ -58,7 +58,20 @@ describe('POST /api/auth/register', () => {
 });
 
 describe('POST /api/auth/login', () => {
-  it('should login with valid credentials', async () => {
+  it('should reject unverified email', async () => {
+    const res = await request(app)
+      .post('/api/auth/login')
+      .send({ email: testUser.email, password: testUser.password });
+
+    expect(res.status).toBe(403);
+  });
+
+  it('should login after email verification', async () => {
+    const user = await prisma.user.findUnique({ where: { email: testEmail } });
+    await request(app)
+      .post('/api/auth/verify-email')
+      .send({ email: testEmail, code: user!.verificationCode });
+
     const res = await request(app)
       .post('/api/auth/login')
       .send({ email: testUser.email, password: testUser.password });
@@ -112,19 +125,6 @@ describe('POST /api/auth/refresh', () => {
 });
 
 describe('POST /api/auth/verify-email', () => {
-  it('should verify email with correct code', async () => {
-    // Retrieve the code from the database
-    const user = await prisma.user.findUnique({ where: { email: testEmail } });
-    const code = user!.verificationCode!;
-
-    const res = await request(app)
-      .post('/api/auth/verify-email')
-      .send({ email: testEmail, code });
-
-    expect(res.status).toBe(200);
-    expect(res.body.success).toBe(true);
-  });
-
   it('should reject wrong code', async () => {
     const res = await request(app)
       .post('/api/auth/verify-email')
@@ -144,13 +144,13 @@ describe('POST /api/auth/forgot-password + reset-password', () => {
     expect(res.body.success).toBe(true);
   });
 
-  it('should reset password with valid token', async () => {
+  it('should reset password with valid code', async () => {
     const user = await prisma.user.findUnique({ where: { email: testEmail } });
-    const token = user!.resetToken!;
+    const code = user!.passwordResetToken!;
 
     const res = await request(app)
       .post('/api/auth/reset-password')
-      .send({ token, password: 'newpassword456' });
+      .send({ email: testEmail, code, password: 'newpassword456' });
 
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
@@ -165,10 +165,10 @@ describe('POST /api/auth/forgot-password + reset-password', () => {
     expect(res.body.success).toBe(true);
   });
 
-  it('should reject invalid reset token', async () => {
+  it('should reject invalid reset code', async () => {
     const res = await request(app)
       .post('/api/auth/reset-password')
-      .send({ token: 'fake-token', password: 'whatever123' });
+      .send({ email: testEmail, code: '000000', password: 'whatever123' });
 
     expect(res.status).toBe(400);
   });

@@ -50,16 +50,16 @@ export default function ForgotPasswordScreen({ navigation }: Props) {
     return (
       <View style={styles.container}>
         <View style={responsiveInner}>
-          <Text style={styles.title}>Email sent</Text>
+          <Text style={styles.title}>Code sent</Text>
           <Text style={styles.info}>
-            If an account exists with this email, a reset token has been generated.{'\n'}
-            Check the server logs to retrieve it.
+            If an account exists with this email, a 6-digit reset code has been sent.{'\n'}
+            Check your inbox (or spam folder).
           </Text>
           <TouchableOpacity
             style={[styles.button, { backgroundColor: colors.primary }]}
-            onPress={() => navigation.navigate('ResetPassword')}
+            onPress={() => navigation.navigate('ResetPassword', { email: email.trim() })}
           >
-            <Text style={styles.buttonText}>Enter token</Text>
+            <Text style={styles.buttonText}>Enter code</Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={() => navigation.goBack()}>
             <Text style={[styles.linkText, { color: colors.primary }]}>Back to login</Text>
@@ -77,7 +77,7 @@ export default function ForgotPasswordScreen({ navigation }: Props) {
       <View style={responsiveInner}>
         <Text style={styles.title}>Forgot password</Text>
         <Text style={styles.subtitle}>
-          Enter your email to receive a reset token
+          Enter your email to receive a reset code
         </Text>
 
         <TextInput

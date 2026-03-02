@@ -18,8 +18,9 @@ import { useResponsive } from '../hooks/use-responsive';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ResetPassword'>;
 
-export default function ResetPasswordScreen({ navigation }: Props) {
-  const [token, setToken] = useState('');
+export default function ResetPasswordScreen({ route, navigation }: Props) {
+  const { email } = route.params;
+  const [code, setCode] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -27,8 +28,8 @@ export default function ResetPasswordScreen({ navigation }: Props) {
   const { formMaxWidth } = useResponsive();
 
   const handleReset = async () => {
-    if (!token.trim()) {
-      crossAlert('Error', 'Please enter the token');
+    if (code.length !== 6) {
+      crossAlert('Error', 'Code must contain 6 digits');
       return;
     }
     if (password.length < 8) {
@@ -42,7 +43,7 @@ export default function ResetPasswordScreen({ navigation }: Props) {
 
     setLoading(true);
     try {
-      await api.post('/auth/reset-password', { token: token.trim(), password });
+      await api.post('/auth/reset-password', { email, code, password });
       crossAlert('Success', 'Password reset successfully', [
         { text: 'OK', onPress: () => navigation.navigate('Login') },
       ]);
@@ -63,16 +64,18 @@ export default function ResetPasswordScreen({ navigation }: Props) {
       <View style={[styles.inner, formMaxWidth ? { maxWidth: formMaxWidth, width: '100%', alignSelf: 'center' as const } : undefined]}>
         <Text style={styles.title}>Reset your password</Text>
         <Text style={styles.subtitle}>
-          Enter the token you received and your new password
+          Enter the 6-digit code sent to {email}
         </Text>
 
         <TextInput
-          style={styles.input}
-          placeholder="Reset token"
-          placeholderTextColor="#999"
-          value={token}
-          onChangeText={setToken}
-          autoCapitalize="none"
+          style={[styles.codeInput, { borderColor: colors.primary }]}
+          placeholder="000000"
+          placeholderTextColor="#ccc"
+          value={code}
+          onChangeText={(text) => setCode(text.replace(/[^0-9]/g, '').slice(0, 6))}
+          keyboardType="number-pad"
+          maxLength={6}
+          textAlign="center"
         />
 
         <TextInput
@@ -101,7 +104,7 @@ export default function ResetPasswordScreen({ navigation }: Props) {
           {loading ? (
             <ActivityIndicator color="#fff" />
           ) : (
-            <Text style={styles.buttonText}>Reset</Text>
+            <Text style={styles.buttonText}>Reset password</Text>
           )}
         </TouchableOpacity>
 
@@ -134,7 +137,18 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#666',
     textAlign: 'center',
-    marginBottom: 28,
+    marginBottom: 24,
+  },
+  codeInput: {
+    borderWidth: 2,
+    borderRadius: 12,
+    padding: 16,
+    fontSize: 28,
+    letterSpacing: 12,
+    fontWeight: '700',
+    marginBottom: 20,
+    backgroundColor: '#fafafa',
+    color: '#1a1a1a',
   },
   input: {
     borderWidth: 1,

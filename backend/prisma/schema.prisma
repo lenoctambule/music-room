@@ -26,8 +26,8 @@ model User {
 
   verificationCode       String?
   verificationCodeExpiry DateTime?
-  resetToken             String?
-  resetTokenExpiry       DateTime?
+  passwordResetToken     String?
+  passwordResetExpires   DateTime?
 
   // Relations amitié
   sentRequests     Friendship[] @relation("SentRequests")

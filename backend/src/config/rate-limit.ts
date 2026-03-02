@@ -19,7 +19,7 @@ export const authLimiter = rateLimit({
 // Softer global limit for the entire API
 export const globalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 200,
+  max: 500,
   skip: skipInTest,
   standardHeaders: true,
   legacyHeaders: false,
